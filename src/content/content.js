@@ -26,7 +26,7 @@
 
     /* ---- floating badge ---- */
     .fbadge {
-      position: fixed; z-index: 2147483646;
+      position: fixed; z-index: 2147483647;
       display: inline-flex; align-items: center; gap: 5px;
       padding: 4px 9px; border: 0; border-radius: 999px;
       background: rgba(0,0,0,.84); color: #fff;
@@ -259,6 +259,11 @@
     return { anchor: a, id };
   }
 
+  /**
+   * Top-left corner, deliberately. The bottom edge of a YouTube thumbnail is
+   * busy on hover — the scrubber, the watched-progress bar and the duration
+   * chip all live there — so a badge anchored to the bottom fights them.
+   */
   function placeBadge() {
     rafPending = false;
     if (!hoverAnchor || !hoverAnchor.isConnected) return hideBadge(true);
@@ -268,7 +273,7 @@
       return hideBadge(true);
     }
     badgeEl.style.left = `${Math.round(r.left + 6)}px`;
-    badgeEl.style.top = `${Math.round(r.bottom - 28)}px`;
+    badgeEl.style.top = `${Math.round(r.top + 6)}px`;
   }
 
   function schedulePlace() {
