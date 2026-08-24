@@ -1,72 +1,22 @@
 /*
- * The badge and the cached-verdict chip live in the page DOM, on the thumbnail
- * anchor itself, so they are styled here rather than in the shadow root. They
- * are the only two things we put in YouTube's DOM.
+ * Only the cached-verdict chip is injected into YouTube's DOM. The hover badge
+ * used to live here too, but a button appended to a thumbnail gets destroyed
+ * whenever YouTube recycles the tile or swaps in its preview player — which is
+ * what made it blink. It is now a single floating element inside our shadow
+ * root, styled in content.js.
  */
-
-.sy20-badge {
-  position: absolute;
-  left: 6px;
-  bottom: 6px;
-  z-index: 30;
-
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-
-  padding: 4px 9px;
-  border: 0;
-  border-radius: 999px;
-
-  background: rgba(0, 0, 0, .82);
-  color: #fff;
-  font: 600 11px/1 Roboto, "Segoe UI", system-ui, sans-serif;
-  white-space: nowrap;
-  cursor: pointer;
-
-  /* Hidden until the thumbnail is hovered — nothing is fetched until a click,
-     and an always-on button on every tile would bury the grid. */
-  opacity: 0;
-  transform: translateY(3px);
-  transition: opacity .12s ease, transform .12s ease, background .12s ease;
-  pointer-events: none;
-}
-
-a:hover > .sy20-badge,
-.sy20-badge:focus-visible {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
-}
-
-.sy20-badge:hover { background: #065fd4; }
-
-.sy20-badge.busy {
-  opacity: 1;
-  pointer-events: auto;
-  animation: sy20-pulse 1s ease-in-out infinite;
-}
-
-@keyframes sy20-pulse { 50% { opacity: .55; } }
-
-.sy20-badge svg { flex: none; }
-
-/* Already summarised: show the verdict without waiting to be asked. */
 .sy20-chip {
   position: absolute;
   right: 6px;
   top: 6px;
   z-index: 30;
-
   padding: 3px 7px;
   border-radius: 4px;
-
   font: 700 10px/1.35 Roboto, "Segoe UI", system-ui, sans-serif;
   letter-spacing: .05em;
   color: #fff;
   pointer-events: none;
 }
-
 .sy20-v-watch   { background: #1a7f37; }
 .sy20-v-skim    { background: #9a6700; }
 .sy20-v-skip    { background: #b42318; }

@@ -7,7 +7,7 @@
  */
 import { api } from './lib/browser.js';
 import { videoIdFrom, metaFrom, pickTrack, fetchTrackBody } from './lib/innertube.js';
-import { parseTimedText, flatten, condense } from './lib/transcript.js';
+import { parseTimedText, flatten, condense, cueTimes } from './lib/transcript.js';
 import { SYSTEM_PROMPT, RESULT_SCHEMA, buildUserMessage } from './lib/prompt.js';
 import { PROVIDERS, activeProvider, getSettings } from './lib/settings.js';
 import * as cache from './lib/cache.js';
@@ -48,7 +48,23 @@ async function playerViaTab(videoId) {
  * the cap is advisory there. Enforcing it here keeps all three providers
  * rendering the same way instead of one of them quietly overflowing the card.
  */
-function normalise(result) {
+function normalise(result, { times = [], durationSec = 0 } = {}) {
+  /**
+   * Snap a cited timestamp onto a moment that actually exists in the
+   * transcript. The model can only see markers every 10s, so any figure
+   * between two of them is interpolation — and interpolation is what was
+   * sending people to the wrong part of the video.
+   */
+  const snap = (t) => {
+    const clamped = Math.max(0, durationSec ? Math.min(t, durationSec) : t);
+    if (!times.length) return clamped;
+    let best = times[0];
+    for (const c of times) {
+      if (Math.abs(c - clamped) < Math.abs(best - clamped)) best = c;
+    }
+    return best;
+  };
+
   const str = (v) => (typeof v === 'string' ? v.trim() : '');
   const verdicts = ['watch', 'skim', 'skip', 'unclear'];
   const verdict = verdicts.includes(result.verdict) ? result.verdict : 'unclear';
@@ -64,7 +80,7 @@ function normalise(result) {
       .map(str).filter(Boolean).slice(0, 5),
     jump_to: (Array.isArray(result.jump_to) ? result.jump_to : [])
       .filter((j) => j && Number.isFinite(Number(j.t)) && str(j.label))
-      .map((j) => ({ t: Math.max(0, Math.round(Number(j.t))), label: str(j.label) }))
+      .map((j) => ({ t: snap(Math.round(Number(j.t))), label: str(j.label) }))
       .slice(0, 4),
     who_for: str(result.who_for),
   };
@@ -76,7 +92,7 @@ const MAX_TRANSCRIPT_CHARS = 120_000;
 /** Requests in flight, so a double-click doesn't buy two summaries. */
 const inFlight = new Map();
 
-async function buildSummary(videoId) {
+async function buildSummary(videoId, onProgress = () => {}) {
   const active = await activeProvider();
   if (!active.ok) {
     const err = new Error(active.reason);
@@ -84,6 +100,7 @@ async function buildSummary(videoId) {
     throw err;
   }
 
+  onProgress({ phase: 'video' });
   const player = await playerViaTab(videoId);
   const meta = metaFrom(player);
 
@@ -94,6 +111,7 @@ async function buildSummary(videoId) {
     throw new Error('This video has no captions, so there is nothing to summarise.');
   }
 
+  onProgress({ phase: 'captions' });
   const body = await fetchTrackBody(track);
   const allCues = parseTimedText(body);
   if (allCues.length < 5) {
@@ -102,6 +120,13 @@ async function buildSummary(videoId) {
 
   const { cues, thinned } = condense(allCues, MAX_TRANSCRIPT_CHARS);
   const transcript = flatten(cues);
+  const times = cueTimes(cues);
+
+  onProgress({
+    phase: 'reading',
+    minutes: Math.max(1, Math.round(meta.durationSec / 60)),
+    model: active.model,
+  });
 
   const provider = PROVIDERS[active.provider];
   const result = await provider.summarise({
@@ -122,7 +147,7 @@ async function buildSummary(videoId) {
   return cache.put(videoId, {
     videoId,
     ...meta,
-    ...normalise(result),
+    ...normalise(result, { times, durationSec: meta.durationSec }),
     autoCaptions: track.kind === 'asr',
     lang: track.languageCode,
     thinned,
@@ -131,7 +156,7 @@ async function buildSummary(videoId) {
   });
 }
 
-async function summarise({ videoId, url, force }) {
+async function summarise({ videoId, url, force, onProgress }) {
   const id = videoId || videoIdFrom(url);
   if (!id) return { ok: false, error: 'That does not look like a YouTube video.' };
 
@@ -142,7 +167,7 @@ async function summarise({ videoId, url, force }) {
 
   if (inFlight.has(id)) return inFlight.get(id);
 
-  const task = buildSummary(id)
+  const task = buildSummary(id, onProgress)
     .then((data) => ({ ok: true, cached: false, data }))
     .catch((e) => ({ ok: false, error: e.message, needsKey: Boolean(e.needsKey) }))
     .finally(() => inFlight.delete(id));
@@ -191,6 +216,39 @@ const handlers = {
     return { ok: true };
   },
 };
+
+/**
+ * Progress channel. sendMessage is one shot, so a summary that takes ten
+ * seconds would otherwise be a spinner with nothing behind it. A port lets the
+ * phases (looking up the video / downloading captions / reading it) reach the
+ * UI as they happen.
+ */
+api.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'sy20') return;
+
+  let alive = true;
+  port.onDisconnect.addListener(() => {
+    alive = false;
+  });
+
+  const post = (m) => {
+    if (!alive) return;
+    try {
+      port.postMessage(m);
+    } catch {
+      // The popover was closed mid-flight; the summary still finishes and caches.
+    }
+  };
+
+  port.onMessage.addListener(async (msg) => {
+    if (msg?.type !== 'summarise') return;
+    const result = await summarise({
+      ...msg,
+      onProgress: (p) => post({ type: 'progress', ...p }),
+    });
+    post({ type: 'done', ...result });
+  });
+});
 
 api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const handler = handlers[msg?.type];

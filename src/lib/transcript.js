@@ -98,11 +98,14 @@ export function formatTimestamp(sec) {
 /**
  * Flatten cues into timestamped paragraphs.
  *
- * The model needs timestamps to produce useful "jump to" points, but a marker
- * on every cue is mostly noise and burns tokens. One marker per `bucketSec`
- * of video is enough to locate a moment within a few seconds.
+ * The model needs timestamps to produce useful "jump to" points, and the
+ * marker spacing is the ceiling on how accurate those can be: the model can
+ * only cite a time it can see, so anything between two markers is guesswork.
+ * At 30s spacing that guesswork was landing visibly in the wrong place, so
+ * markers go every 10s. The cost is small — a marker is ~8 tokens, so even a
+ * two-hour video spends under 6k tokens on them.
  */
-export function flatten(cues, bucketSec = 30) {
+export function flatten(cues, bucketSec = 10) {
   if (!cues.length) return '';
   const lines = [];
   let bucketStart = null;
@@ -141,4 +144,9 @@ export function condense(cues, maxChars) {
   const keepRatio = maxChars / total;
   const kept = cues.filter((_, i) => (i * keepRatio) % 1 < keepRatio);
   return { cues: kept.length ? kept : cues.slice(0, 200), thinned: true };
+}
+
+/** The distinct timestamps a model could legitimately cite, ascending. */
+export function cueTimes(cues) {
+  return [...new Set(cues.map((c) => c.t))].sort((a, b) => a - b);
 }
