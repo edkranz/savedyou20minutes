@@ -19,11 +19,6 @@
 
   const api = globalThis.browser ?? globalThis.chrome;
 
-  const CLOCK = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-    <path d="M12 7v5.2l3.2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-  </svg>`;
-
   const VERDICT_TEXT = { watch: 'WORTH IT', skim: 'SKIM IT', skip: 'SKIP IT', unclear: 'UNCLEAR' };
 
   const CSS = `
@@ -192,10 +187,44 @@
     return '';
   }
 
-  const esc = (s) =>
-    String(s ?? '').replace(/[&<>"']/g, (c) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+  /**
+   * Minimal element builder. Everything the UI renders is built as real nodes
+   * with textContent, never assembled as an HTML string — AMO flags innerHTML
+   * assignment as a rejection risk, and escaping by hand is exactly the kind
+   * of thing that is one forgotten call away from being wrong anyway.
+   */
+  function h(tag, props, ...kids) {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'class') n.className = v;
+      else if (k === 'text') n.textContent = v;
+      else if (k === 'dataset') Object.assign(n.dataset, v);
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2).toLowerCase(), v);
+      else n.setAttribute(k, v);
+    }
+    for (const kid of kids.flat()) {
+      if (kid == null || kid === false) continue;
+      n.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    }
+    return n;
+  }
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function svg(tag, attrs) {
+    const n = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    return n;
+  }
+
+  function clockIcon() {
+    const s = svg('svg', { viewBox: '0 0 24 24', width: '14', height: '14', 'aria-hidden': 'true' });
+    s.append(
+      svg('circle', { cx: '12', cy: '12', r: '9', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }),
+      svg('path', { d: 'M12 7v5.2l3.2 2', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round' })
     );
+    return s;
+  }
 
   // ------------------------------------------------------------ shadow root
 
@@ -205,12 +234,13 @@
   document.documentElement.appendChild(host);
 
   const root = host.attachShadow({ mode: 'open' });
-  root.innerHTML = `<style>${CSS}</style>
-    <button class="fbadge" type="button" hidden>${CLOCK}<span>Worth it?</span></button>
-    <div class="pop" hidden></div>`;
+  const styleEl = document.createElement('style');
+  styleEl.textContent = CSS;
 
-  const badgeEl = root.querySelector('.fbadge');
-  const popEl = root.querySelector('.pop');
+  const badgeEl = h('button', { class: 'fbadge', type: 'button', hidden: '' },
+    clockIcon(), h('span', { text: 'Worth it?' }));
+  const popEl = h('div', { class: 'pop', hidden: '' });
+  root.append(styleEl, badgeEl, popEl);
 
   // ------------------------------------------------------- floating badge
 
@@ -308,10 +338,10 @@
   };
 
   function renderProgress(text = 'Starting…') {
-    return `<div class="card">
-      <div class="track"><span class="bar"></span></div>
-      <div class="phase">${esc(text)}</div>
-    </div>`;
+    return h('div', { class: 'card' },
+      h('div', { class: 'track' }, h('span', { class: 'bar' })),
+      h('div', { class: 'phase', text })
+    );
   }
 
   /**
@@ -377,75 +407,72 @@
   // ------------------------------------------------------------- rendering
 
   function renderError(error, needsKey) {
-    return `<div class="card">
-      <div class="verr">${esc(error)}</div>
-      ${needsKey ? '<button class="btn" data-act="options">Open settings</button>' : ''}
-    </div>`;
+    return h('div', { class: 'card' },
+      h('div', { class: 'verr', text: error }),
+      needsKey && h('button', {
+        class: 'btn',
+        text: 'Open settings',
+        onclick: () => send({ type: 'openOptions' }),
+      })
+    );
+  }
+
+  function jumpLink(d, j) {
+    return h('a', {
+      class: 'jump',
+      href: `/watch?v=${encodeURIComponent(d.videoId)}&t=${j.t | 0}`,
+      onclick: (e) => {
+        const video = document.querySelector('video.html5-main-video, #movie_player video');
+        if (video && location.pathname === '/watch') {
+          e.preventDefault();
+          video.currentTime = j.t | 0;
+          video.play?.();
+          closePopover();
+        }
+      },
+    }, h('b', { text: fmtTime(j.t) }), ` ${j.label}`);
   }
 
   function renderResult(d, { onWatchPage }) {
     const saved = savedLine(d);
     const bait = Number(d.bait) || 0;
-    const jumps = (d.jump_to || [])
-      .map(
-        (j) =>
-          `<a class="jump" href="/watch?v=${encodeURIComponent(d.videoId)}&t=${j.t | 0}" data-t="${j.t | 0}">
-             <b>${fmtTime(j.t)}</b> ${esc(j.label)}
-           </a>`
+    const jumps = d.jump_to || [];
+    const takeaways = d.takeaways || [];
+    const provenance = [
+      d.model || '',
+      d.autoCaptions ? 'auto-captions' : '',
+      d.thinned ? 'long video, sampled' : '',
+    ].filter(Boolean).join(' · ');
+
+    return h('div', { class: 'card' },
+      h('div', { class: 'head' },
+        h('span', { class: `pill v-${d.verdict}`, text: VERDICT_TEXT[d.verdict] || 'VERDICT' }),
+        saved && h('span', { class: 'saved', text: saved }),
+        h('button', { class: 'x', title: 'Close', text: '×', onclick: closePopover })
+      ),
+      h('p', { class: 'answer', text: d.answer }),
+      d.verdict_line && h('p', { class: 'why', text: d.verdict_line }),
+      bait >= 3 && h('div', { class: `bait b-${bait}` },
+        h('span', { class: 'baitlabel', text: `Clickbait ${bait}/5` }),
+        d.bait_note && h('span', { text: d.bait_note })
+      ),
+      takeaways.length && h('ul', { class: 'take' },
+        takeaways.map((t) => h('li', { text: t }))
+      ),
+      jumps.length && h('div', { class: 'jumps' }, jumps.map((j) => jumpLink(d, j))),
+      d.who_for && h('p', { class: 'whofor', text: d.who_for }),
+      h('div', { class: 'foot' },
+        h('span', { class: 'muted', text: provenance }),
+        h('button', {
+          class: 'link',
+          text: 'Re-run',
+          onclick: () => runSummary(d.videoId, {
+            force: true,
+            show: (node) => (onWatchPage ? renderPanel(node) : showPopover(popAnchor || badgeEl, node)),
+            scope: () => (onWatchPage ? panelScope() : popEl),
+          }),
+        })
       )
-      .join('');
-
-    return `<div class="card">
-      <div class="head">
-        <span class="pill v-${esc(d.verdict)}">${VERDICT_TEXT[d.verdict] || 'VERDICT'}</span>
-        ${saved ? `<span class="saved">${esc(saved)}</span>` : ''}
-        <button class="x" data-act="close" title="Close">&times;</button>
-      </div>
-      <p class="answer">${esc(d.answer)}</p>
-      ${d.verdict_line ? `<p class="why">${esc(d.verdict_line)}</p>` : ''}
-      ${bait >= 3 ? `<div class="bait b-${bait}">
-          <span class="baitlabel">Clickbait ${bait}/5</span>
-          ${d.bait_note ? `<span>${esc(d.bait_note)}</span>` : ''}
-        </div>` : ''}
-      ${(d.takeaways || []).length
-        ? `<ul class="take">${d.takeaways.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`
-        : ''}
-      ${jumps ? `<div class="jumps">${jumps}</div>` : ''}
-      ${d.who_for ? `<p class="whofor">${esc(d.who_for)}</p>` : ''}
-      <div class="foot">
-        <span class="muted">${esc(d.model || '')}${d.autoCaptions ? ' · auto-captions' : ''}${d.thinned ? ' · long video, sampled' : ''}</span>
-        <button class="link" data-act="redo" data-id="${esc(d.videoId)}" data-watch="${onWatchPage ? '1' : ''}">Re-run</button>
-      </div>
-    </div>`;
-  }
-
-  function wire(scope) {
-    scope.querySelectorAll('[data-act="close"]').forEach((b) =>
-      b.addEventListener('click', closePopover)
-    );
-    scope.querySelectorAll('[data-act="options"]').forEach((b) =>
-      b.addEventListener('click', () => send({ type: 'openOptions' }))
-    );
-    scope.querySelectorAll('[data-act="redo"]').forEach((b) =>
-      b.addEventListener('click', () => {
-        const onWatch = Boolean(b.dataset.watch);
-        runSummary(b.dataset.id, {
-          force: true,
-          show: (html) => (onWatch ? renderPanel(html) : showPopover(popAnchor || badgeEl, html)),
-          scope: () => (onWatch ? panelScope() : popEl),
-        });
-      })
-    );
-    scope.querySelectorAll('.jump').forEach((a) =>
-      a.addEventListener('click', (e) => {
-        const video = document.querySelector('video.html5-main-video, #movie_player video');
-        if (video && location.pathname === '/watch') {
-          e.preventDefault();
-          video.currentTime = Number(a.dataset.t) || 0;
-          video.play?.();
-          closePopover();
-        }
-      })
     );
   }
 
@@ -472,17 +499,16 @@
     }
   }
 
-  function showPopover(anchor, html) {
+  function showPopover(anchor, node) {
     popAnchor = anchor;
-    popEl.innerHTML = html;
+    popEl.replaceChildren(node);
     popEl.hidden = false;
     positionPop();
-    wire(popEl);
   }
 
   function closePopover() {
     popEl.hidden = true;
-    popEl.innerHTML = '';
+    popEl.replaceChildren();
     popAnchor = null;
   }
 
@@ -581,30 +607,37 @@
 
   const panelScope = () => document.getElementById('sy20-panel')?.shadowRoot?.querySelector('.panel');
 
-  function renderPanel(html) {
+  function renderPanel(node) {
     let panel = document.getElementById('sy20-panel');
     if (!panel) {
       panel = document.createElement('div');
       panel.id = 'sy20-panel';
       const shadow = panel.attachShadow({ mode: 'open' });
-      shadow.innerHTML = `<style>${CSS}</style><div class="panel"></div>`;
+      const style = document.createElement('style');
+      style.textContent = CSS;
+      shadow.append(style, h('div', { class: 'panel' }));
       const metadata = document.querySelector('ytd-watch-metadata');
       const bottomRow = metadata?.querySelector('#bottom-row');
       if (bottomRow) bottomRow.parentElement.insertBefore(panel, bottomRow);
       else document.querySelector('#secondary-inner')?.prepend(panel);
       if (!panel.isConnected) return null;
     }
-    const box = panel.shadowRoot.querySelector('.panel');
-    box.innerHTML = html;
-    wire(box);
+    panel.shadowRoot.querySelector('.panel').replaceChildren(node);
     return panel;
   }
 
   function watchPrompt(id) {
-    return `<div class="card cta">
-      <div class="row"><span class="logo">${CLOCK}</span><b>Saved You 20 Minutes</b></div>
-      <button class="btn" data-act="run" data-id="${esc(id)}">Is this worth watching?</button>
-    </div>`;
+    return h('div', { class: 'card cta' },
+      h('div', { class: 'row' },
+        h('span', { class: 'logo' }, clockIcon()),
+        h('b', { text: 'Saved You 20 Minutes' })
+      ),
+      h('button', {
+        class: 'btn',
+        text: 'Is this worth watching?',
+        onclick: () => runSummary(id, { show: renderPanel, scope: panelScope }),
+      })
+    );
   }
 
   async function setupWatchPage() {
@@ -617,14 +650,7 @@
 
     const cached = await send({ type: 'peek', videoIds: [id], always: true });
     const hit = cached.ok && cached.data[id];
-    const panel = renderPanel(hit ? renderResult(hit, { onWatchPage: true }) : watchPrompt(id));
-    if (!panel) return;
-
-    panel.shadowRoot.querySelectorAll('[data-act="run"]').forEach((b) =>
-      b.addEventListener('click', () =>
-        runSummary(b.dataset.id, { show: renderPanel, scope: panelScope })
-      )
-    );
+    renderPanel(hit ? renderResult(hit, { onWatchPage: true }) : watchPrompt(id));
   }
 
   // --------------------------------------------------------------- startup
