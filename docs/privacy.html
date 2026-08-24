@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Saved You 20 Minutes</title>
+<meta name="description" content="Privacy policy for the Saved You 20 Minutes browser extension.">
+<link rel="icon" href="icon.svg">
+<style>
+  :root {
+    --fg: #16181c; --muted: #5c636e; --line: #e3e6ea;
+    --bg: #fff; --soft: #f6f7f9; --accent: #0b5fd0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e8eaed; --muted: #9aa3ad; --line: #2b2f36;
+      --bg: #111316; --soft: #1a1d21; --accent: #64a8ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 64px 22px 96px; max-width: 640px;
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  header img { width: 44px; height: 44px; border-radius: 10px; }
+  h1 { font-size: 27px; margin: 0; letter-spacing: -.02em; }
+  .tag { color: var(--muted); font-size: 17px; margin: 0 0 40px; }
+  h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--muted); margin: 40px 0 12px; font-weight: 600;
+  }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  a { color: var(--accent); }
+  code {
+    background: var(--soft); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 5px; font-size: 13.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .example {
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 6px; background: var(--soft); padding: 16px 18px; margin: 0 0 14px;
+  }
+  .verdict {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    background: #b42318; color: #fff; padding: 2px 7px; border-radius: 999px;
+    margin-bottom: 9px;
+  }
+  .example p { margin: 0; }
+  .example .why { color: var(--muted); font-size: 14.5px; margin-top: 7px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; margin-bottom: 14px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  footer {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<p><a href="./">&larr; Saved You 20 Minutes</a></p>
+<h1>Privacy Policy</h1>
+<p class="tag">Last updated: 24 August 2026</p>
+
+<p><strong>Short version:</strong> there is no server. I never receive your data, because there is nowhere for it to be sent to me. Everything below describes what your own browser does.</p>
+
+<h2>What is sent, and when</h2>
+<p>Nothing is transmitted until you click <strong>Worth it?</strong> on a video. Browsing YouTube with the extension installed sends nothing.</p>
+<p>When you do click, two requests happen:</p>
+<ul>
+  <li><strong>To YouTube</strong> — to fetch that video's caption track. This is the same public data YouTube already serves to the page you are on, and it is sent without your cookies, so it is not tied to your YouTube account.</li>
+  <li><strong>To the AI provider you configured</strong> — Anthropic, OpenAI or Google, whichever you chose. It contains the video's title, the channel name, the duration rounded to minutes, the transcript text, the transcript's language code when it is not English, and your API key as the authentication header. That is the complete list. No browsing history, no other tabs, no identifiers, nothing about you.</li>
+</ul>
+<p>Only the provider you selected is contacted. The other two receive nothing.</p>
+
+<h2>What is stored</h2>
+<p>Everything is stored locally in your browser's extension storage. Nothing is synced, uploaded or backed up anywhere by this extension.</p>
+<ul>
+  <li><strong>Your API keys</strong>, so you don't re-enter them. They are sent only to the matching provider, as authentication, and are held in the background script where no web page — YouTube included — can read them.</li>
+  <li><strong>Your settings</strong> — provider, model, and whether to show verdicts on thumbnails you have already summarised.</li>
+  <li><strong>A cache of summaries</strong>, keyed by video ID, capped at 500 entries. This is what stops you paying twice for the same video.</li>
+</ul>
+<p>You can erase all of it at any time: <strong>Settings &rarr; Clear cache</strong> removes the summaries, and uninstalling removes everything, keys included.</p>
+
+<h2>What it does not do</h2>
+<ul>
+  <li>No analytics, telemetry, crash reporting or usage statistics.</li>
+  <li>No advertising, and no data sold or shared with anyone.</li>
+  <li>No tracking of what you watch or search for.</li>
+  <li>No account, no sign-up, and no server operated by me — none exists to run.</li>
+</ul>
+
+<h2>The AI provider is a separate relationship</h2>
+<p>The provider you choose receives your transcript and processes it under <em>their</em> terms and privacy policy, using <em>your</em> API key and account. I am not a party to that. If retention matters to you, read the policy of whichever you pick:</p>
+<ul>
+  <li><a href="https://www.anthropic.com/legal/privacy">Anthropic</a></li>
+  <li><a href="https://openai.com/policies/privacy-policy">OpenAI</a></li>
+  <li><a href="https://policies.google.com/privacy">Google</a></li>
+</ul>
+<p>API providers generally treat paid API traffic differently from their consumer chat products, but that is their commitment to you, not mine, and it can change. Choosing the provider is the point at which you decide who sees your transcripts.</p>
+
+<h2>Changes</h2>
+<p>Material changes will be published here and in the extension's listing, with the date above updated.</p>
+
+<h2>Contact</h2>
+<p><a href="https://github.com/edkranz/savedyou20minutes/issues">Open an issue on GitHub</a>.</p>
+
+<footer>
+  <a href="./">Home</a> · <a href="https://github.com/edkranz/savedyou20minutes">Source on GitHub</a>
+</footer>
+
+</body>
+</html>
