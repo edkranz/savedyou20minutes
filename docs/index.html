@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saved You 20 Minutes</title>
+<meta name="description" content="A browser extension that reads a YouTube video's transcript and tells you whether it's worth watching.">
+<link rel="icon" href="icon.svg">
+<style>
+  :root {
+    --fg: #16181c; --muted: #5c636e; --line: #e3e6ea;
+    --bg: #fff; --soft: #f6f7f9; --accent: #0b5fd0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e8eaed; --muted: #9aa3ad; --line: #2b2f36;
+      --bg: #111316; --soft: #1a1d21; --accent: #64a8ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 64px 22px 96px; max-width: 640px;
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  header img { width: 44px; height: 44px; border-radius: 10px; }
+  h1 { font-size: 27px; margin: 0; letter-spacing: -.02em; }
+  .tag { color: var(--muted); font-size: 17px; margin: 0 0 40px; }
+  h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--muted); margin: 40px 0 12px; font-weight: 600;
+  }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  a { color: var(--accent); }
+  code {
+    background: var(--soft); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 5px; font-size: 13.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .example {
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 6px; background: var(--soft); padding: 16px 18px; margin: 0 0 14px;
+  }
+  .verdict {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    background: #b42318; color: #fff; padding: 2px 7px; border-radius: 999px;
+    margin-bottom: 9px;
+  }
+  .example p { margin: 0; }
+  .example .why { color: var(--muted); font-size: 14.5px; margin-top: 7px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; margin-bottom: 14px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  footer {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="icon.svg" alt="">
+  <h1>Saved You 20 Minutes</h1>
+</header>
+<p class="tag">Reads a YouTube video's transcript and tells you whether it's worth watching — spoiling the clickbait on purpose.</p>
+
+<p>Hover any thumbnail, click <strong>Worth it?</strong>, and you get the answer the title was dangling, before you spend the twenty minutes finding out.</p>
+
+<div class="example">
+  <span class="verdict">SKIP IT</span>
+  <p>He sold the car after four months because insurance quoted him $6,400/yr, not because of anything mechanical.</p>
+  <p class="why">The answer is at 18:40. Everything before it is recap and a sponsor read.</p>
+</div>
+
+<h2>What you get</h2>
+<ul>
+  <li><strong>The payoff first.</strong> If the title asks a question, the first line answers it. If it teases a reveal, the first line reveals it.</li>
+  <li><strong>A verdict.</strong> Worth it, skim it, or skip it — judged against the summary you just read, not against nothing.</li>
+  <li><strong>Timestamps that work.</strong> Jump straight to the parts that matter, if any do.</li>
+  <li><strong>A clickbait score</strong>, when the gap between the title and the video is big enough to be worth naming.</li>
+</ul>
+
+<h2>Install</h2>
+<p>Grab the code from <a href="https://github.com/edkranz/savedyou20minutes">GitHub</a>, then:</p>
+<ul>
+  <li><strong>Firefox</strong> — open <code>about:debugging</code> → This Firefox → Load Temporary Add-on → pick <code>manifest.json</code></li>
+  <li><strong>Chrome</strong> — open <code>chrome://extensions</code> → Developer mode → Load unpacked → pick the folder</li>
+</ul>
+
+<h2>Bring your own key</h2>
+<p>There is no server and no account. You paste an API key in Settings, and the extension talks to that provider directly from your browser.</p>
+<table>
+  <tr><th>Provider</th><th>Default model</th></tr>
+  <tr><td>Anthropic</td><td><code>claude-haiku-4-5</code></td></tr>
+  <tr><td>OpenAI</td><td><code>gpt-4.1-mini</code></td></tr>
+  <tr><td>Google Gemini</td><td><code>gemini-2.5-flash</code></td></tr>
+</table>
+<p>A summary costs well under a cent, and every one is cached, so you pay once per video ever.</p>
+
+<h2>Privacy</h2>
+<p>Your key is stored in your browser and sent only to the provider you chose. Nothing goes to any server of mine, because there isn't one. Summaries are cached locally.</p>
+
+<footer>
+  <a href="https://github.com/edkranz/savedyou20minutes">Source on GitHub</a> · MIT-free, unlicensed for now · by <a href="https://kranz.au">Ed Kranz</a>
+</footer>
+
+</body>
+</html>

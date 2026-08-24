@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="28" fill="#0f0f0f"/>
+  <!-- clock face -->
+  <circle cx="64" cy="66" r="38" fill="none" stroke="#ffffff" stroke-width="9"/>
+  <!-- the wedge you get back -->
+  <path d="M64 66 L64 30 A36 36 0 0 1 95 84 Z" fill="#b42318"/>
+  <!-- hands -->
+  <path d="M64 66 V38" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M64 66 L86 79" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="64" cy="66" r="6" fill="#ffffff"/>
+</svg>
