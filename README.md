@@ -101,3 +101,7 @@ UI renders inside a shadow root — YouTube restyles the page aggressively and s
 - Age-restricted and members-only videos are refused by the InnerTube call, since it deliberately sends no cookies.
 - Live streams have no transcript until they end.
 - The ANDROID client version string in `innertube.js` is the sort of thing YouTube can invalidate. If transcripts stop resolving, that constant is the first place to look.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
