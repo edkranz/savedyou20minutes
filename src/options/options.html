@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Saved You 20 Minutes — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Saved You 20 Minutes</h1>
+      <p class="sub">Reads the transcript, tells you whether the video is worth it, and spoils the clickbait on purpose.</p>
+    </header>
+
+    <section>
+      <h2>AI provider</h2>
+      <p class="hint">Your key is stored in this browser's extension storage and is only ever sent to the provider you pick. It is never sent to YouTube or to us.</p>
+
+      <label class="field">
+        <span>Provider</span>
+        <select id="provider"></select>
+      </label>
+
+      <label class="field">
+        <span>API key</span>
+        <input id="apiKey" type="password" spellcheck="false" autocomplete="off" placeholder="Paste your key">
+      </label>
+      <p class="hint"><a id="keyLink" href="#" target="_blank" rel="noopener">Where do I get a key?</a></p>
+
+      <label class="field">
+        <span>Model</span>
+        <select id="model"></select>
+      </label>
+
+      <div class="actions">
+        <button id="test" class="btn ghost" type="button">Test key</button>
+        <span id="testResult" class="result"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Behaviour</h2>
+      <label class="check">
+        <input id="showCachedBadges" type="checkbox">
+        <span>Show the verdict on thumbnails I've already summarised</span>
+      </label>
+    </section>
+
+    <section>
+      <h2>Cache</h2>
+      <p class="hint">Summaries are cached per video so re-opening one costs nothing. <span id="cacheStats"></span></p>
+      <button id="clearCache" class="btn ghost" type="button">Clear cache</button>
+      <span id="clearResult" class="result"></span>
+    </section>
+
+    <footer>
+      <span id="saveState" class="result"></span>
+    </footer>
+  </main>
+  <script src="options.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# web-ext build output
+web-ext-artifacts/
+*.xpi
+*.zip
+
+# Node (only if tooling is added later)
+node_modules/

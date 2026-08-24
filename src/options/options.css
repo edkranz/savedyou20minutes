@@ -1,0 +1,44 @@
+:root {
+  --bg: #fff; --fg: #0f0f0f; --muted: #5f6368;
+  --line: #0000001f; --soft: #f7f7f7; --accent: #065fd4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181818; --fg: #f1f1f1; --muted: #aaa;
+    --line: #ffffff24; --soft: #ffffff0f; --accent: #3ea6ff;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 32px 20px 60px;
+  background: var(--bg); color: var(--fg);
+  font: 400 14px/1.55 Roboto, "Segoe UI", system-ui, sans-serif;
+}
+main { max-width: 620px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
+.sub { color: var(--muted); margin: 0 0 28px; }
+section { border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+.field { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 12px; margin-bottom: 12px; }
+.field > span { color: var(--muted); font-size: 13px; }
+input, select {
+  width: 100%; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--soft); color: var(--fg);
+  font: inherit;
+}
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hint { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+a { color: var(--accent); }
+.check { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 8px; }
+.check input { width: auto; margin-top: 3px; }
+.actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.btn {
+  background: var(--accent); color: #fff; border: 0; border-radius: 999px;
+  padding: 8px 16px; font: 600 13px/1 inherit; cursor: pointer;
+}
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+.btn:hover { filter: brightness(1.1); }
+.result { font-size: 12.5px; color: var(--muted); }
+.result.ok  { color: #1a7f37; }
+.result.err { color: #b42318; }
+footer { text-align: right; min-height: 20px; }
