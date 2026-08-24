@@ -244,19 +244,35 @@
 
   // ------------------------------------------------------- floating badge
 
-  let hoverAnchor = null;   // the thumbnail <a> under the pointer
+  let hoverTile = null;     // the tile container, NOT the <a> inside it
   let hoverId = null;
   let hideTimer = null;
-  let rafPending = false;
+  let trackRaf = null;
 
-  /** A thumbnail link, or null. Title links and chips are not thumbnails. */
+  /**
+   * The stable outer element for a video tile. Binding to the inner <a> is
+   * what caused the badge to blink: when YouTube starts its inline preview it
+   * rebuilds the thumbnail's contents, so that anchor gets detached or its
+   * rect collapses to zero, and anything positioned against it vanishes and
+   * comes back. These container elements survive the swap.
+   */
+  const TILE = [
+    'ytd-rich-item-renderer',
+    'ytd-video-renderer',
+    'ytd-compact-video-renderer',
+    'ytd-grid-video-renderer',
+    'ytd-playlist-video-renderer',
+    'ytd-reel-item-renderer',
+    'yt-lockup-view-model',
+  ].join(',');
+
   function thumbTargetFrom(el) {
     const a = el?.closest?.('a[href]');
     if (!a) return null;
     const id = videoIdFromHref(a.getAttribute('href'));
     if (!id) return null;
     if (!a.querySelector('img, yt-image')) return null;
-    return { anchor: a, id };
+    return { tile: a.closest(TILE) || a, anchor: a, id };
   }
 
   /**
@@ -265,10 +281,8 @@
    * chip all live there — so a badge anchored to the bottom fights them.
    */
   function placeBadge() {
-    rafPending = false;
-    if (!hoverAnchor || !hoverAnchor.isConnected) return hideBadge(true);
-    const r = hoverAnchor.getBoundingClientRect();
-    // Scrolled out of view, or collapsed by a re-render.
+    if (!hoverTile || !hoverTile.isConnected) return hideBadge(true);
+    const r = hoverTile.getBoundingClientRect();
     if (r.width < 60 || r.height < 40 || r.bottom < 0 || r.top > window.innerHeight) {
       return hideBadge(true);
     }
@@ -276,19 +290,29 @@
     badgeEl.style.top = `${Math.round(r.top + 6)}px`;
   }
 
-  function schedulePlace() {
-    if (rafPending) return;
-    rafPending = true;
-    requestAnimationFrame(placeBadge);
+  /**
+   * Track the tile every frame while the badge is up. The preview player
+   * resizes and reflows the tile as it loads, and a badge that only
+   * repositions on scroll would drift off it.
+   */
+  function startTracking() {
+    if (trackRaf) return;
+    const tick = () => {
+      if (badgeEl.hidden) { trackRaf = null; return; }
+      placeBadge();
+      trackRaf = requestAnimationFrame(tick);
+    };
+    trackRaf = requestAnimationFrame(tick);
   }
 
-  function showBadgeOver(anchor, id) {
+  function showBadgeOver(tile, id) {
     clearTimeout(hideTimer);
-    hoverAnchor = anchor;
+    hoverTile = tile;
     hoverId = id;
     badgeEl.hidden = false;
     badgeEl.dataset.show = '1';
     placeBadge();
+    startTracking();
   }
 
   function hideBadge(now = false) {
@@ -296,38 +320,51 @@
     const doIt = () => {
       badgeEl.dataset.show = '0';
       badgeEl.hidden = true;
-      hoverAnchor = null;
+      hoverTile = null;
       hoverId = null;
     };
-    // A short grace period so crossing the gap onto the badge doesn't drop it.
     if (now) doIt();
     else hideTimer = setTimeout(doIt, 140);
   }
 
   document.addEventListener('mouseover', (e) => {
-    if (e.target === host) { clearTimeout(hideTimer); return; }  // on our own badge
+    if (e.target === host) { clearTimeout(hideTimer); return; }
+
     const t = thumbTargetFrom(e.target);
     if (t) {
-      if (t.anchor !== hoverAnchor || t.id !== hoverId) showBadgeOver(t.anchor, t.id);
+      if (t.tile !== hoverTile || t.id !== hoverId) showBadgeOver(t.tile, t.id);
       else clearTimeout(hideTimer);
-    } else {
-      hideBadge();
+      return;
     }
+
+    // Still inside the tile we are showing for. Once the preview player takes
+    // over, the pointer is over a <video> that is not inside a thumbnail
+    // anchor, so the lookup above returns null — but the user has not left the
+    // tile, and hiding here is precisely the flicker.
+    if (hoverTile && hoverTile.isConnected && hoverTile.contains(e.target)) {
+      clearTimeout(hideTimer);
+      return;
+    }
+
+    hideBadge();
   }, { passive: true });
 
-  window.addEventListener('scroll', schedulePlace, { passive: true, capture: true });
-  window.addEventListener('resize', schedulePlace, { passive: true });
+  window.addEventListener('resize', placeBadge, { passive: true });
 
   badgeEl.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     const id = hoverId;
-    const anchor = hoverAnchor;
+    const tile = hoverTile;
     if (!id) return;
+    // Re-resolve the anchor at click time; the one we first saw may be gone.
+    const anchorFor = () =>
+      [...(tile?.querySelectorAll('a[href]') || [])]
+        .find((a) => videoIdFromHref(a.getAttribute('href')) === id && a.querySelector('img, yt-image'));
     await runSummary(id, {
-      show: (html) => showPopover(anchor || badgeEl, html),
+      show: (node) => showPopover(tile || badgeEl, node),
       scope: () => popEl,
-      onDone: (data) => anchor && markCached(anchor, data),
+      onDone: (data) => { const a = anchorFor(); if (a) markCached(a, data); },
     });
   });
 
