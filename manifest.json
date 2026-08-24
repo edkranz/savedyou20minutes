@@ -2,8 +2,10 @@
   "manifest_version": 3,
   "name": "Saved You 20 Minutes",
   "version": "0.1.0",
-  "description": "Reads a YouTube video's transcript and tells you, in one line, whether it's worth your time — and what the clickbait was hiding.",
-  "permissions": ["storage"],
+  "description": "Reads a YouTube video's transcript and tells you, in one line, whether it's worth your time \u2014 and what the clickbait was hiding.",
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://api.anthropic.com/*",
@@ -12,14 +14,33 @@
   ],
   "background": {
     "service_worker": "src/background.js",
-    "scripts": ["src/background.js"],
+    "scripts": [
+      "src/background.js"
+    ],
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
-      "js": ["src/content/content.js"],
-      "css": ["src/content/content.css"],
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content/yt-bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
+      "css": [
+        "src/content/content.css"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }

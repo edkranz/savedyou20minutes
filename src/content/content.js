@@ -140,6 +140,46 @@
     return null;
   }
 
+  // --- MAIN-world relay -------------------------------------------------
+  // The background script cannot call YouTube's player endpoint itself (403 on
+  // a non-YouTube Origin), so it asks us, and we ask yt-bridge.js, which runs
+  // in the page's own context where the origin is genuinely youtube.com.
+  const PLAYER_REQ = 'sy20:player:req';
+  const PLAYER_RES = 'sy20:player:res';
+  const pending = new Map();
+  let seq = 0;
+
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    const msg = event.data;
+    if (!msg || msg.type !== PLAYER_RES) return;
+    const settle = pending.get(msg.id);
+    if (!settle) return;
+    pending.delete(msg.id);
+    settle(msg);
+  });
+
+  function playerViaPage(videoId) {
+    return new Promise((resolve) => {
+      const id = ++seq;
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        resolve({ ok: false, error: 'Timed out reading the video from the page.' });
+      }, 20000);
+      pending.set(id, (msg) => {
+        clearTimeout(timer);
+        resolve({ ok: msg.ok, data: msg.data, error: msg.error });
+      });
+      window.postMessage({ type: PLAYER_REQ, id, videoId }, location.origin);
+    });
+  }
+
+  api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg?.type !== 'ytPlayer') return false;
+    playerViaPage(msg.videoId).then(sendResponse);
+    return true;
+  });
+
   const send = (msg) =>
     new Promise((resolve) => {
       try {

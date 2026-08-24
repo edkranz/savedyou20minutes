@@ -6,11 +6,39 @@
  * host_permissions let these fetches bypass the page's CORS rules.
  */
 import { api } from './lib/browser.js';
-import { videoIdFrom, fetchPlayer, metaFrom, pickTrack, fetchTrackBody } from './lib/innertube.js';
+import { videoIdFrom, metaFrom, pickTrack, fetchTrackBody } from './lib/innertube.js';
 import { parseTimedText, flatten, condense } from './lib/transcript.js';
 import { SYSTEM_PROMPT, RESULT_SCHEMA, buildUserMessage } from './lib/prompt.js';
 import { PROVIDERS, activeProvider, getSettings } from './lib/settings.js';
 import * as cache from './lib/cache.js';
+
+/**
+ * Ask a YouTube tab to fetch the player response on our behalf.
+ *
+ * YouTube 403s the /youtubei/v1/player endpoint when the request carries an
+ * extension Origin, which every background-script POST does. The MAIN-world
+ * bridge in the page has the right origin, so the call goes: background ->
+ * content script -> page -> back. The caption download afterwards is fine from
+ * here, so only this one hop is delegated.
+ */
+async function playerViaTab(videoId) {
+  const tabs = await api.tabs.query({ url: 'https://www.youtube.com/*' });
+  if (!tabs.length) {
+    throw new Error('Open a YouTube tab first — the transcript has to be fetched from youtube.com.');
+  }
+
+  let lastError = 'No YouTube tab was able to fetch this video.';
+  for (const tab of tabs) {
+    try {
+      const r = await api.tabs.sendMessage(tab.id, { type: 'ytPlayer', videoId });
+      if (r?.ok && r.data) return r.data;
+      if (r?.error) lastError = r.error;
+    } catch {
+      // That tab has no content script yet (still loading, or a stale tab).
+    }
+  }
+  throw new Error(lastError);
+}
 
 /**
  * Clamp the model's output to the shape the UI actually renders.
@@ -56,7 +84,7 @@ async function buildSummary(videoId) {
     throw err;
   }
 
-  const player = await fetchPlayer(videoId);
+  const player = await playerViaTab(videoId);
   const meta = metaFrom(player);
 
   if (meta.isLive) throw new Error('This is a live stream — no transcript to read yet.');

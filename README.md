@@ -50,6 +50,12 @@ The `ANDROID` InnerTube client (`POST /youtubei/v1/player`) still returns captio
 
 The same call also returns title, channel and duration, so one request gets both the metadata and the captions.
 
+There is a second trap behind the first. That player endpoint returns **403 to any request carrying a non-YouTube `Origin` header** — and browsers attach `Origin: moz-extension://…` (or `chrome-extension://…`) to every POST a background script makes. This is invisible to `curl` and Node, which send no `Origin` at all, so it passes every test you can write outside a browser and then fails the moment you load the extension. `X-Origin`, `Referer` and the `youtubei.googleapis.com` host were all tried; all 403.
+
+The fix is `src/content/yt-bridge.js`, a MAIN-world content script. It runs in the page's own JS context, where the origin genuinely is `youtube.com`, so the call succeeds. The chain is background → content script → page → back. Only that one call needs it: the caption download itself accepts any origin and stays in the background script.
+
+That split is deliberate rather than incidental — the MAIN world is visible to the page, so only the public metadata call happens there. The API key never leaves the background script.
+
 Auto-generated caption XML interleaves "rolling" duplicate lines (marked `a="1"`) — the half-line repeats that make live captions scroll. Left in, they roughly double the transcript and read like a stutter, so they're dropped. Parsing is regex-based rather than `DOMParser`-based because Chrome's MV3 background is a service worker and has no `DOMParser`.
 
 For very long videos the transcript is thinned to fit the token budget by dropping evenly-spaced cues rather than truncating the tail — the payoff of a clickbait video is usually held back until the final minutes, and that payoff is the single thing this extension exists to extract.
@@ -78,7 +84,9 @@ src/
     cache.js             per-video cache in storage.local, 500-entry LRU
     settings.js          provider registry and stored settings
     providers/           anthropic.js, openai.js, gemini.js
-  content/               thumbnail badges, popover, watch-page panel
+  content/
+    yt-bridge.js         MAIN-world shim: the one call needing a youtube.com origin
+    content.js           thumbnail badges, popover, watch-page panel
   options/               settings page
   popup/                 toolbar popup
 ```

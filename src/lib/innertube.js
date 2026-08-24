@@ -1,34 +1,20 @@
 /**
- * YouTube transcript retrieval.
+ * YouTube transcript retrieval — caption track selection and download.
  *
- * Why the ANDROID InnerTube client and not the watch page:
- * As of 2025 the caption `baseUrl`s embedded in the WEB watch page (and returned
- * by the WEB InnerTube client) are signed in a way that makes them return an
- * EMPTY 200 response. The ANDROID client still hands back caption URLs that
- * fetch normally, with no cookies, no PO token, and no custom User-Agent —
- * which matters, because `fetch()` in an extension is not allowed to set
- * User-Agent anyway.
+ * The player response itself is NOT fetched here. YouTube returns 403 to any
+ * request to /youtubei/v1/player carrying a non-YouTube `Origin` header, and
+ * browsers attach `Origin: moz-extension://…` to every POST a background
+ * script makes. X-Origin, Referer and the googleapis.com host were all tried
+ * and all 403. So that one call is delegated to `content/yt-bridge.js`, which
+ * runs in the page's MAIN world where the origin is genuinely youtube.com.
  *
- * The same call also returns videoDetails (title, author, lengthSeconds), so
- * one request gets us both the metadata and the caption track list.
+ * The caption download below is a different story: it is happy with any origin
+ * (verified), so it stays here in the background script.
  *
- * No `key` query parameter: the endpoint accepts the request without one
- * (verified — identical response either way). Every copy of this call you
- * will find online passes YouTube's public INNERTUBE_API_KEY, which is
- * served in the HTML of every youtube.com page. It is not a credential, but
- * it is shaped exactly like a Google Cloud key, so it trips secret scanners
- * and alarms anyone reading the diff. Since it buys nothing, it is omitted.
+ * The ANDROID InnerTube client is used rather than WEB because, as of 2025, the
+ * caption baseUrls the WEB client hands out return an empty 200 response. The
+ * ANDROID ones fetch normally with no cookies and no PO token.
  */
-
-const INNERTUBE_URL = 'https://www.youtube.com/youtubei/v1/player';
-
-const ANDROID_CLIENT = {
-  clientName: 'ANDROID',
-  clientVersion: '20.10.38',
-  androidSdkVersion: 30,
-  hl: 'en',
-  gl: 'US',
-};
 
 /** Pull an 11-character video id out of any YouTube URL shape. */
 export function videoIdFrom(url) {
@@ -47,40 +33,6 @@ export function videoIdFrom(url) {
     /* not a URL */
   }
   return null;
-}
-
-/** Fetch the player response for a video. Throws a human-readable Error. */
-export async function fetchPlayer(videoId) {
-  let res;
-  try {
-    res = await fetch(INNERTUBE_URL, {
-      method: 'POST',
-      credentials: 'omit',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-YouTube-Client-Name': '3',
-        'X-YouTube-Client-Version': ANDROID_CLIENT.clientVersion,
-      },
-      body: JSON.stringify({
-        context: { client: ANDROID_CLIENT },
-        videoId,
-        contentCheckOk: true,
-        racyCheckOk: true,
-      }),
-    });
-  } catch (e) {
-    throw new Error(`Could not reach YouTube (${e.message}).`);
-  }
-
-  if (!res.ok) throw new Error(`YouTube returned HTTP ${res.status} for this video.`);
-
-  const data = await res.json();
-  const status = data?.playabilityStatus?.status;
-  if (status && status !== 'OK') {
-    const reason = data.playabilityStatus.reason || status;
-    throw new Error(`YouTube won't serve this video: ${reason}`);
-  }
-  return data;
 }
 
 /** Metadata we can show even when there is no transcript. */
