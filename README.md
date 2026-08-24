@@ -37,6 +37,8 @@ Roughly: a 6-minute video is about 1,100 tokens of transcript, a 20-minute one a
 
 Your key is stored in extension storage and only ever sent to the provider you chose. It lives in the background script, never in a content script, so no page — YouTube included — can read it.
 
+**What leaves your browser.** When you click *Worth it?* on a video, that video's title, channel and transcript are sent to the AI provider you configured. Nothing else, nowhere else — there is no server of mine involved, and nothing is sent until you click. The manifest declares this to Firefox as `websiteContent` (the transcript and title are page content) and `browsingActivity` (sending them identifies the video you're looking at). Summaries are cached locally in your browser.
+
 ## How it gets the transcript
 
 This is the part that took the most work, and it's worth writing down.
